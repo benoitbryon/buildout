@@ -1373,7 +1373,8 @@ Here is a more elaborate example.
     name base
     op buildout
     op1 b1 1
-    op2 b2 2
+    op2 b1 2
+    b2 2
     op3 b2 3
     op4 b3 4
     op5 b3base 5
@@ -1508,7 +1509,8 @@ delimiter.)
     name base
     op buildout
     op1 b1 1
-    op2 b2 2
+    op2 b1 2
+    b2 2
     op3 b2 3
     op4 b3 4
     op5 b3base 5
@@ -1525,7 +1527,8 @@ user defaults:
     name base
     op buildout
     op1 b1 1
-    op2 b2 2
+    op2 b1 2
+    b2 2
     op3 b2 3
     op4 b3 4
     op5 b3base 5
@@ -1550,7 +1553,8 @@ set the logging level to WARNING
     >>> print system(buildout),
     name base
     op1 b1 1
-    op2 b2 2
+    op2 b1 2
+    b2 2
     op3 b2 3
     recipe recipes:debug
 
