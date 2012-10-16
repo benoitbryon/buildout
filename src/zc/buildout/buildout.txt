@@ -1384,12 +1384,192 @@ Here is a more elaborate example.
 
 There are several things to note about this example:
 
-- We can name multiple files in an extends option.
+- We can name multiple files in an extends option (see `Multiple inheritance`_
+  below for details).
 
 - We can reference files recursively.
 
 - Relative file names in extended options are interpreted relative to
   the directory containing the referencing configuration file.
+
+Multiple inheritance
+--------------------
+
+As seen in previous section, we can name multiple files in an ``extends``
+option. That's multiple inheritance. Let's explain this feature...
+
+Typical usage of multiple inheritance is to reuse configuration you often need,
+or even reuse configuration from contribs (see `Loading configuration from
+URLs`_ for details).
+
+Let's say we already have distinct configuration files for two application (a
+frontend and a backend) and we want to install them both with one buildout
+configuration file...
+
+    >>> write(sample_buildout, 'buildout.cfg',
+    ... """
+    ... [buildout]
+    ... extends = frontend.cfg backend.cfg
+    ... parts += main
+    ...
+    ... [main]
+    ... recipe = recipes:debug
+    ... only-in-main = true
+    ...
+    ... # Override, extend or add some options for frontend.
+    ... [frontend]
+    ... overriden = main
+    ... extended += main
+    ... removed -= frontend
+    ... added = main
+    ... also-added += main
+    ...
+    ... # Override, extend or add some options for backend.
+    ... [backend]
+    ... overriden = main
+    ... extended += main
+    ... removed -= backend
+    ... added = main
+    ... also-added += main
+    ...
+    ... # Override, extend or add some options in some shared section.
+    ... [common]
+    ... main = true
+    ... overriden = main
+    ... extended += main
+    ... added = main
+    ... also-added += main
+    ... """)
+
+    >>> write(sample_buildout, 'frontend.cfg',
+    ... """
+    ... [buildout]
+    ... extends = base.cfg
+    ... parts += frontend.cfg
+    ...
+    ... [frontend]
+    ... recipe = recipes:debug
+    ... inherited = frontend
+    ... overriden = frontend
+    ... extended = frontend
+    ... removed = frontend
+    ...
+    ... [common]
+    ... frontend = true
+    ... overriden = frontend
+    ... extended += frontend
+    ... """)
+
+    >>> write(sample_buildout, 'backend.cfg',
+    ... """
+    ... [buildout]
+    ... extends = base.cfg
+    ... parts += backend
+    ...
+    ... [backend]
+    ... recipe = recipes:debug
+    ... inherited = backend
+    ... overriden = backend
+    ... extended = backend
+    ... removed = backend
+    ...
+    ... [common]
+    ... backend = true
+    ... overriden = backend
+    ... extended += backend
+    ... """)
+
+    >>> write(sample_buildout, 'base.cfg',
+    ... """
+    ... [buildout]
+    ... develop = recipes
+    ... parts = common
+    ...
+    ... [common]
+    ... recipe = recipes:debug
+    ... base = true
+    ... overriden = base
+    ... extended = base
+    ... """)
+
+    >>> print system(buildout),
+    Develop: '/sample-buildout/recipes'
+    Uninstalling debug.
+    Installing common.
+    added main
+    also-added 
+    main
+    backend true
+    base true
+    extended base
+    backend
+    main
+    frontend true
+    main true
+    overriden main
+    recipe recipes:debug
+    Installing backend.
+    added main
+    also-added 
+    main
+    extended backend
+    main
+    inherited backend
+    overriden main
+    recipe recipes:debug
+    removed 
+    Installing main.
+    only-in-main true
+    recipe recipes:debug
+
+What happened here:
+
+#. Buildout parses file buildout.cfg and its ``extends`` option in
+   ``[buildout]`` section.
+
+  #. Buildout parses file frontend.cfg and its ``extends`` option. It starts
+     a loop over bases.
+
+     #. Buildout parses file base.cfg. No inheritance here. Options are
+        computed. At this point:
+
+        * ``parts = common``
+
+        These values are returned back to frontend.cfg computation.
+
+  #. frontend.cfg has no more bases. It's time to update the options from bases
+     with options from frontend.cfg:
+
+     * in frontend.cfg ``parts`` uses ``+=``, so frontend.cfg's parts are added
+       to base.cfg's ones. We got ``parts == common frontend``
+
+#. Back to iteration over buildout.cfg's bases. Buildout stores the current
+   result of bases (currently only frontend.cfg) for later use, then parses
+   next base: backend.cfg.
+
+   #. backend.cfg also extends base.cfg.
+
+   #. base.cfg has already been computed. Results are returned to backend.cfg:
+
+      * ``parts == common``
+
+   #. backend.cfg has no more bases. It's time to update the options from bases
+      with options from backend.cfg:
+
+      * in backend.cfg ``parts`` uses ``+=``, so backend.cfg's parts are added
+        to base.cfg's ones. We got ``parts = common backend``
+
+#. Buildout updates current bases result (only frontend.cfg at this time) with
+   result of backend.cfg:
+
+   * **WHAT HAPPENS HERE WITH PARTS?** It seems that we get
+     ``parts = common backend`` and not ``parts = common frontend backend``
+
+#. buildout.cfg has no more bases. It's time to update the options from bases
+   with options from buildout.cfg:
+
+   * in buildout.cfg ``parts`` uses ``+=``, so buildout.cfg's parts are added
+     to ones from bases. We got ``parts = common backend main``
 
 Loading Configuration from URLs
 -------------------------------
